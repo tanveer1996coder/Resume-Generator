@@ -4,7 +4,7 @@ import { ContentOptimizer, ExperienceForm, EducationForm } from '../components/F
 import CoverLetterForm from '../components/CoverLetterForm';
 import TemplateViewer from '../components/TemplateViewer';
 import { optimizeContent, analyzePhoto, getATSScore, generateDescription } from '../services/api';
-import { Plus, Download, Trash2, Layout, Upload, Camera, AlertCircle, CheckCircle, Edit2, Type, List, CheckSquare, Settings, GripVertical, FileText, Check, Briefcase } from 'lucide-react';
+import { Plus, Download, Trash2, Layout, Upload, Camera, AlertCircle, CheckCircle, Edit2, Settings, GripVertical, FileText } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';

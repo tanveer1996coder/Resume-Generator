@@ -1,37 +1,13 @@
-
 import React from 'react';
 import { useResume } from '../context/ResumeContext';
-import { generateDescription } from '../services/api';
-import { Sparkles, Edit2 } from 'lucide-react';
+import { Edit2 } from 'lucide-react';
 
 const CoverLetterForm = () => {
-    const { coverLetterData, updateCoverLetter, resumeData } = useResume();
-    const [isGenerating, setIsGenerating] = React.useState(false);
+    const { coverLetterData, updateCoverLetter } = useResume();
 
-    const handleAutoGenerate = async () => {
-        if (!resumeData.personalInfo.role) {
-            alert("Please define your Job Title in the Resume section first.");
-            return;
-        }
-
-        setIsGenerating(true);
-        try {
-            // Reusing generate description for now, but ideally we'd have a specific endpoint for cover letters
-            // For MVP, we can format a prompt on the client or reuse the endpoint if it was generic enough.
-            // Let's assume we'll just ask the user to write it for now, 
-            // OR use the generateDescription with a specific prompt if we modify the backend later.
-            // For this phase, let's keep it simple: manual input + simple AI help if possible.
-            // We'll skip complex AI generation for the *entire* letter in this step to stick to the plan scope,
-            // but we can add small optimizations later.
-
-            // Just a placeholder alert for now as per plan focus on "Structure" first.
-            alert("AI Cover Letter generation coming in Phase 4!");
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsGenerating(false);
-        }
-    };
+    // Future AI Feature placeholder
+    // const [isGenerating, setIsGenerating] = React.useState(false);
+    // const handleAutoGenerate = ...
 
     return (
         <div className="space-y-6 animate-fade-in">

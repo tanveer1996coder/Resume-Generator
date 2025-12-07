@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { templates, categories } from '../data/templates';
 import { useResume } from '../context/ResumeContext';
+import TemplateViewer from '../components/TemplateViewer';
+import { mockData } from '../data/mockData';
 
 const TemplatePage = () => {
     const navigate = useNavigate();
@@ -41,27 +43,37 @@ const TemplatePage = () => {
 
                 <div className="grid md:grid-cols-3 gap-8">
                     {filteredTemplates.map((t) => (
-                        <div key={t.id} className="group relative bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition-all border border-gray-100">
-                            {/* Mock Preview */}
-                            <div className={`h-64 ${t.color} flex items-center justify-center relative`}>
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-5 transition-all" />
-                                <span className="text-gray-400 font-bold uppercase tracking-widest">{t.name}</span>
+                        <div key={t.id} className="group relative bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition-all border border-gray-100 h-[32rem]">
+                            {/* Live Preview (Zoomed out) */}
+                            <div className="w-full h-full relative bg-gray-100 overflow-hidden cursor-pointer" onClick={() => handleSelect(t.id)}>
+                                <div className="absolute inset-0 w-[400%] h-[400%] transform scale-[0.25] origin-top-left pointer-events-none">
+                                    <TemplateViewer
+                                        data={mockData}
+                                        templateId={t.id}
+                                        activeDocument="resume"
+                                    />
+                                </div>
+                                {/* Hover overlay */}
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors z-20" />
                             </div>
 
-                            <div className="p-6">
-                                <div className="flex justify-between items-start mb-2">
+                            <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur border-t border-gray-100 transform translate-y-16 group-hover:translate-y-0 transition-transform duration-300 z-30">
+                                <div className="flex justify-between items-start mb-1">
                                     <h3 className="text-lg font-bold text-gray-800">{t.name}</h3>
                                     {t.tags && t.tags.includes('ats-friendly') && (
                                         <span className="px-2 py-0.5 bg-green-100 text-[10px] font-bold rounded text-green-700 uppercase tracking-wider">ATS</span>
                                     )}
                                 </div>
-                                <p className="text-sm text-gray-500 mb-4 line-clamp-2">{t.description}</p>
+                                <p className="text-sm text-gray-500 mb-3 line-clamp-1">{t.description}</p>
 
                                 <button
-                                    onClick={() => handleSelect(t.id)}
-                                    className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSelect(t.id);
+                                    }}
+                                    className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg shadow-sm hover:bg-indigo-700 transition-colors"
                                 >
-                                    Use This Template
+                                    Select Design
                                 </button>
                             </div>
                         </div>

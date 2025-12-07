@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Sparkles } from 'lucide-react';
+import { Trash2, Sparkles } from 'lucide-react';
 
 export const ContentOptimizer = ({ section, content, onOptimize }) => {
     const [loading, setLoading] = useState(false);

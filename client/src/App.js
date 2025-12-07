@@ -1,9 +1,9 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import InputPage from './pages/InputPage';
 import CategoryPage from './pages/CategoryPage';
-import DesignPage from './pages/DesignPage';
+import TemplatePage from './pages/TemplatePage';
 import EditorPage from './pages/EditorPage';
 import { ResumeProvider } from './context/ResumeContext';
 
@@ -16,7 +16,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/start" element={<InputPage />} />
             <Route path="/categories" element={<CategoryPage />} />
-            <Route path="/designs" element={<DesignPage />} />
+            <Route path="/designs" element={<TemplatePage />} />
             <Route path="/editor" element={<EditorPage />} />
           </Routes>
         </div>

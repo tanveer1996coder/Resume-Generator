@@ -42,6 +42,27 @@ const DesignPage = () => {
             icon: Hash,
             color: 'bg-gray-100 text-gray-600',
             description: 'Simple, typography-focused single column. Focuses purely on content.'
+        },
+        {
+            id: 'chicago',
+            name: 'Chicago',
+            icon: Coffee,
+            color: 'bg-amber-100 text-amber-700',
+            description: 'Classic serif design with traditional formatting. Best for law, academia, and government.'
+        },
+        {
+            id: 'tajmahal',
+            name: 'Taj Mahal',
+            icon: Briefcase,
+            color: 'bg-blue-100 text-blue-700',
+            description: 'Professional two-column with colored sidebar. Perfect for corporate and business roles.'
+        },
+        {
+            id: 'windsor',
+            name: 'Windsor',
+            icon: Star,
+            color: 'bg-purple-100 text-purple-700',
+            description: 'Elegant timeline design with sophisticated styling. Stands out in competitive fields.'
         }
     ];
 

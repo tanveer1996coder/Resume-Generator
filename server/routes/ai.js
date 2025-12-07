@@ -34,6 +34,34 @@ router.post('/optimize', async (req, res) => {
         res.status(500).json({ error: 'Failed to optimize content' });
     }
 });
+
+// Generate description endpoint
+router.post('/generate-description', async (req, res) => {
+    const { jobTitle, company } = req.body;
+
+    try {
+        const prompt = `
+            You are a professional resume writer.
+            Task: Generate 3-4 impactful, result-oriented bullet points for a "${jobTitle}" role${company ? ` at ${company}` : ''}.
+            
+            Requirements:
+            1. Use strong action verbs (e.g., "Spearheaded", "Optimized", "Collaborated").
+            2. Focus on typical achievements and responsibilities for this role.
+            3. Keep it concise/bulleted but return as a single string joined by newlines.
+            4. Do not include introductory text like "Here are the points:".
+        `;
+
+        const completion = await openai.chat.completions.create({
+            messages: [{ role: "system", content: "You are a helpful assistant." }, { role: "user", content: prompt }],
+            model: "gpt-4o-mini",
+        });
+
+        res.json({ generatedContent: completion.choices[0].message.content.trim() });
+    } catch (error) {
+        console.error('AI Generation Error:', error);
+        res.status(500).json({ error: 'Failed to generate description' });
+    }
+});
 // Analyze photo endpoint
 router.post('/analyze-photo', async (req, res) => {
     const { imageBase64 } = req.body;

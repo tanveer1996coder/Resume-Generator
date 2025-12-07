@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { useResume } from '../context/ResumeContext';
 import { ContentOptimizer, ExperienceForm, EducationForm } from '../components/FormSections';
+import CoverLetterForm from '../components/CoverLetterForm';
 import TemplateViewer from '../components/TemplateViewer';
-import { optimizeContent, analyzePhoto, getATSScore } from '../services/api';
-import { Plus, Download, Trash2, Layout, Upload, Camera, AlertCircle, CheckCircle, Edit2, Type, List, CheckSquare, Settings, GripVertical, FileText, Check } from 'lucide-react';
+import { optimizeContent, analyzePhoto, getATSScore, generateDescription } from '../services/api';
+import { Plus, Download, Trash2, Layout, Upload, Camera, AlertCircle, CheckCircle, Edit2, Type, List, CheckSquare, Settings, GripVertical, FileText, Check, Briefcase } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -11,7 +12,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { CSS } from '@dnd-kit/utilities';
 
 // --- Sortable Section Component ---
-const SortableSection = ({ section, children, onRemove }) => {
+const SortableSection = ({ section, children, onRemove, onMoveColumn }) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id });
     const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -27,6 +28,13 @@ const SortableSection = ({ section, children, onRemove }) => {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => onMoveColumn(section.id, section.column === 'sidebar' ? 'main' : 'sidebar')}
+                        className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200 border border-gray-200"
+                        title={section.column === 'sidebar' ? "Move to Main Column" : "Move to Sidebar"}
+                    >
+                        {section.column === 'sidebar' ? <Layout size={14} className="rotate-180" /> : <Layout size={14} />}
+                    </button>
                     {children[1]} {/* Type Selector */}
                     <button onClick={() => onRemove(section.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={16} /></button>
                 </div>
@@ -41,8 +49,9 @@ const EditorPage = () => {
         resumeData, updateMeta, updatePersonalInfo,
         addSection, removeSection, reorderSections,
         addItemToSection, updateSectionItem, removeSectionItem,
-        updateSectionTitle, updateSectionType,
-        selectedDesign, jobDescription
+        updateSectionTitle, updateSectionType, updateSectionColumn,
+        selectedDesign, jobDescription,
+        activeDocument, setActiveDocument
     } = useResume();
 
     const [generatingPdf, setGeneratingPdf] = useState(false);
@@ -183,7 +192,7 @@ const EditorPage = () => {
 
     const renderSectionForm = (section) => {
         return (
-            <SortableSection key={section.id} section={section} onRemove={removeSection}>
+            <SortableSection key={section.id} section={section} onRemove={removeSection} onMoveColumn={updateSectionColumn}>
                 {/* Child 1: Title Input (passed to wrapper) */}
                 <div className="flex items-center gap-2 w-full">
                     <input
@@ -220,6 +229,14 @@ const EditorPage = () => {
                                         onOptimize={async () => {
                                             const newDesc = await handleAIMagic("Experience", item.description);
                                             if (newDesc) updateSectionItem(section.id, idx, 'description', newDesc);
+                                        }}
+                                        onGenerate={async (title, company) => {
+                                            try {
+                                                const points = await generateDescription(title, company);
+                                                if (points) updateSectionItem(section.id, idx, 'description', points);
+                                            } catch (e) {
+                                                alert("Failed to generate content");
+                                            }
                                         }}
                                     />
                                     <div className="mt-2 text-right">
@@ -295,7 +312,21 @@ const EditorPage = () => {
             {/* Editor Sidebar */}
             <div className="w-1/2 flex flex-col border-r border-gray-300 bg-white h-full shadow-xl z-20">
                 <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center shadow-sm z-10">
-                    <h2 className="text-xl font-bold text-gray-800">Editor</h2>
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setActiveDocument('resume')}
+                            className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${activeDocument === 'resume' ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <FileText size={14} /> Resume
+                        </button>
+                        <button
+                            onClick={() => setActiveDocument('coverLetter')}
+                            className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all ${activeDocument === 'coverLetter' ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                            <Edit2 size={14} /> Cover Letter
+                        </button>
+                    </div>
+
                     <div className="flex gap-2">
                         {resumeData.sections.length > 0 && jobDescription && (
                             <button
@@ -313,128 +344,136 @@ const EditorPage = () => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-32">
-                    {/* ATS Result */}
-                    {atsData && (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 animate-fade-in">
-                            <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-bold text-emerald-800 flex items-center gap-2"><CheckCircle size={18} /> ATS Score: {atsData.score}/100</h3>
-                                <button onClick={() => setAtsData(null)} className="text-emerald-600 hover:text-emerald-800"><Trash2 size={14} /></button>
-                            </div>
-                            <p className="text-sm text-emerald-700 mb-2">{atsData.feedback}</p>
-                            {atsData.missingKeywords && atsData.missingKeywords.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                    {atsData.missingKeywords.map(k => (
-                                        <span key={k} className="text-xs bg-white border border-emerald-200 px-2 py-0.5 rounded text-emerald-600 font-medium">{k}</span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
 
-                    <section className="space-y-4">
-                        <h3 className="font-bold text-gray-800 border-b pb-2 flex items-center gap-2"><Settings size={16} /> Personal Details</h3>
-
-                        <div className="flex items-start gap-6 mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
-                            <div className="relative group">
-                                <div className={`w-28 h-28 rounded-full overflow-hidden border-4 ${resumeData.personalInfo.photoFeedback ? getFeedbackColor(resumeData.personalInfo.photoFeedback.status).replace('text-', 'border-') : 'border-gray-200'} bg-white flex items-center justify-center shadow-inner relative group`}>
-                                    {resumeData.personalInfo.photo ? (
-                                        <>
-                                            <img src={resumeData.personalInfo.photo} alt="Profile" className="w-full h-full object-cover" />
-                                            <button
-                                                onClick={() => {
-                                                    updatePersonalInfo('photo', null);
-                                                    updatePersonalInfo('photoFeedback', null);
-                                                }}
-                                                className="absolute inset-0 bg-black bg-opacity-50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
-                                                title="Remove Photo"
-                                            >
-                                                <Trash2 size={24} />
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <Camera className="text-gray-300" size={40} />
+                    {/* Mode Switching Content */}
+                    {activeDocument === 'resume' ? (
+                        <>
+                            {/* ATS Result */}
+                            {atsData && (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 animate-fade-in">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h3 className="font-bold text-emerald-800 flex items-center gap-2"><CheckCircle size={18} /> ATS Score: {atsData.score}/100</h3>
+                                        <button onClick={() => setAtsData(null)} className="text-emerald-600 hover:text-emerald-800"><Trash2 size={14} /></button>
+                                    </div>
+                                    <p className="text-sm text-emerald-700 mb-2">{atsData.feedback}</p>
+                                    {atsData.missingKeywords && atsData.missingKeywords.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {atsData.missingKeywords.map(k => (
+                                                <span key={k} className="text-xs bg-white border border-emerald-200 px-2 py-0.5 rounded text-emerald-600 font-medium">{k}</span>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
-                                {!resumeData.personalInfo.photo && (
-                                    <label className="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full cursor-pointer hover:bg-indigo-700 shadow-lg transform translate-y-1/4 translate-x-1/4 transition-transform hover:scale-110">
-                                        <Upload size={16} />
-                                        <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                                    </label>
-                                )}
-                            </div>
+                            )}
 
-                            <div className="flex-1">
-                                <h4 className="font-semibold text-gray-800 mb-1">Profile Photo</h4>
-                                {analyzingPhoto ? (
-                                    <div className="text-sm text-indigo-600 animate-pulse flex items-center gap-2 mt-2">
-                                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                                        Analyzing quality...
-                                    </div>
-                                ) : photoError ? (
-                                    <div className="text-sm text-red-500 mt-2 flex items-center gap-1"><AlertCircle size={14} /> {photoError}</div>
-                                ) : resumeData.personalInfo.photoFeedback ? (
-                                    <div className={`mt-2 p-3 rounded-lg border text-sm ${getFeedbackColor(resumeData.personalInfo.photoFeedback.status)}`}>
-                                        <div className="flex items-center gap-2 font-bold mb-1">
-                                            {resumeData.personalInfo.photoFeedback.status === 'Green' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-                                            {resumeData.personalInfo.photoFeedback.status} Match • Score: {resumeData.personalInfo.photoFeedback.score}/100
+                            <section className="space-y-4">
+                                <h3 className="font-bold text-gray-800 border-b pb-2 flex items-center gap-2"><Settings size={16} /> Personal Details</h3>
+
+                                <div className="flex items-start gap-6 mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm">
+                                    <div className="relative group">
+                                        <div className={`w-28 h-28 rounded-full overflow-hidden border-4 ${resumeData.personalInfo.photoFeedback ? getFeedbackColor(resumeData.personalInfo.photoFeedback.status).replace('text-', 'border-') : 'border-gray-200'} bg-white flex items-center justify-center shadow-inner relative group`}>
+                                            {resumeData.personalInfo.photo ? (
+                                                <>
+                                                    <img src={resumeData.personalInfo.photo} alt="Profile" className="w-full h-full object-cover" />
+                                                    <button
+                                                        onClick={() => {
+                                                            updatePersonalInfo('photo', null);
+                                                            updatePersonalInfo('photoFeedback', null);
+                                                        }}
+                                                        className="absolute inset-0 bg-black bg-opacity-50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                                                        title="Remove Photo"
+                                                    >
+                                                        <Trash2 size={24} />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <Camera className="text-gray-300" size={40} />
+                                            )}
                                         </div>
-                                        <p className="leading-snug opacity-90">{resumeData.personalInfo.photoFeedback.feedback}</p>
+                                        {!resumeData.personalInfo.photo && (
+                                            <label className="absolute bottom-0 right-0 bg-indigo-600 text-white p-2 rounded-full cursor-pointer hover:bg-indigo-700 shadow-lg transform translate-y-1/4 translate-x-1/4 transition-transform hover:scale-110">
+                                                <Upload size={16} />
+                                                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                                            </label>
+                                        )}
                                     </div>
-                                ) : (
-                                    <p className="text-sm text-gray-500 mt-1 leading-relaxed">
-                                        Upload a photo to get <span className="font-semibold text-indigo-600">instant AI feedback</span> on lighting, background, and professionalism.
-                                    </p>
-                                )}
+
+                                    <div className="flex-1">
+                                        <h4 className="font-semibold text-gray-800 mb-1">Profile Photo</h4>
+                                        {analyzingPhoto ? (
+                                            <div className="text-sm text-indigo-600 animate-pulse flex items-center gap-2 mt-2">
+                                                <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                                Analyzing quality...
+                                            </div>
+                                        ) : photoError ? (
+                                            <div className="text-sm text-red-500 mt-2 flex items-center gap-1"><AlertCircle size={14} /> {photoError}</div>
+                                        ) : resumeData.personalInfo.photoFeedback ? (
+                                            <div className={`mt-2 p-3 rounded-lg border text-sm ${getFeedbackColor(resumeData.personalInfo.photoFeedback.status)}`}>
+                                                <div className="flex items-center gap-2 font-bold mb-1">
+                                                    {resumeData.personalInfo.photoFeedback.status === 'Green' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                                                    {resumeData.personalInfo.photoFeedback.status} Match • Score: {resumeData.personalInfo.photoFeedback.score}/100
+                                                </div>
+                                                <p className="leading-snug opacity-90">{resumeData.personalInfo.photoFeedback.feedback}</p>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                                                Upload a photo to get <span className="font-semibold text-indigo-600">instant AI feedback</span> on lighting, background, and professionalism.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input type="text" placeholder="Full Name" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.fullName} onChange={(e) => updatePersonalInfo('fullName', e.target.value)} />
+                                    <input type="text" placeholder="Job Title" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.role} onChange={(e) => updatePersonalInfo('role', e.target.value)} />
+                                    <input type="email" placeholder="Email" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.email} onChange={(e) => updatePersonalInfo('email', e.target.value)} />
+                                    <input type="text" placeholder="Phone" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.phone} onChange={(e) => updatePersonalInfo('phone', e.target.value)} />
+                                    <input type="text" placeholder="Location" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.location || ''} onChange={(e) => updatePersonalInfo('location', e.target.value)} />
+                                    <input type="text" placeholder="LinkedIn / Website" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.linkedin} onChange={(e) => updatePersonalInfo('linkedin', e.target.value)} />
+                                </div>
+                            </section>
+
+                            <section className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h3 className="font-bold text-gray-800">Professional Summary</h3>
+                                    <ContentOptimizer section="summary" content={resumeData.summary} onOptimize={async () => {
+                                        const newText = await handleAIMagic("Bio", resumeData.summary);
+                                        if (newText) updateMeta('summary', newText);
+                                    }} />
+                                </div>
+                                <textarea
+                                    className="w-full p-3 border rounded-lg h-32 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all text-sm leading-relaxed"
+                                    value={resumeData.summary}
+                                    onChange={(e) => updateMeta('summary', e.target.value)}
+                                    placeholder="Briefly describe your professional background and goals..."
+                                />
+                            </section>
+
+                            {/* DnD Context */}
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext items={resumeData.sections} strategy={verticalListSortingStrategy}>
+                                    {resumeData.sections.map(section => renderSectionForm(section))}
+                                </SortableContext>
+                            </DndContext>
+
+                            <div className="pt-6 border-t">
+                                <h4 className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-3">Add Section</h4>
+                                <div className="flex flex-wrap gap-3">
+                                    <button onClick={() => addSection("Experience", "experience")} className="btn-add-section"><Plus size={14} /> Work Experience</button>
+                                    <button onClick={() => addSection("Education", "education")} className="btn-add-section"><Plus size={14} /> Education</button>
+                                    <button onClick={() => addSection("Skills", "skills")} className="btn-add-section"><Plus size={14} /> Skills</button>
+                                    <button onClick={() => addSection("Custom List", "list")} className="btn-add-section"><Plus size={14} /> Custom List</button>
+                                    <button onClick={() => addSection("Custom Text", "paragraph")} className="btn-add-section"><Plus size={14} /> Custom Text</button>
+                                </div>
                             </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <input type="text" placeholder="Full Name" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.fullName} onChange={(e) => updatePersonalInfo('fullName', e.target.value)} />
-                            <input type="text" placeholder="Job Title" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.role} onChange={(e) => updatePersonalInfo('role', e.target.value)} />
-                            <input type="email" placeholder="Email" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.email} onChange={(e) => updatePersonalInfo('email', e.target.value)} />
-                            <input type="text" placeholder="Phone" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.phone} onChange={(e) => updatePersonalInfo('phone', e.target.value)} />
-                            <input type="text" placeholder="Location" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.location || ''} onChange={(e) => updatePersonalInfo('location', e.target.value)} />
-                            <input type="text" placeholder="LinkedIn / Website" className="input-field p-2 border rounded focus:border-indigo-500 outline-none" value={resumeData.personalInfo.linkedin} onChange={(e) => updatePersonalInfo('linkedin', e.target.value)} />
-                        </div>
-                    </section>
-
-                    <section className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                        <div className="flex justify-between items-center mb-3">
-                            <h3 className="font-bold text-gray-800">Professional Summary</h3>
-                            <ContentOptimizer section="summary" content={resumeData.summary} onOptimize={async () => {
-                                const newText = await handleAIMagic("Bio", resumeData.summary);
-                                if (newText) updateMeta('summary', newText);
-                            }} />
-                        </div>
-                        <textarea
-                            className="w-full p-3 border rounded-lg h-32 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all text-sm leading-relaxed"
-                            value={resumeData.summary}
-                            onChange={(e) => updateMeta('summary', e.target.value)}
-                            placeholder="Briefly describe your professional background and goals..."
-                        />
-                    </section>
-
-                    {/* DnD Context */}
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                    >
-                        <SortableContext items={resumeData.sections} strategy={verticalListSortingStrategy}>
-                            {resumeData.sections.map(section => renderSectionForm(section))}
-                        </SortableContext>
-                    </DndContext>
-
-                    <div className="pt-6 border-t">
-                        <h4 className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-3">Add Section</h4>
-                        <div className="flex flex-wrap gap-3">
-                            <button onClick={() => addSection("Experience", "experience")} className="btn-add-section"><Plus size={14} /> Work Experience</button>
-                            <button onClick={() => addSection("Education", "education")} className="btn-add-section"><Plus size={14} /> Education</button>
-                            <button onClick={() => addSection("Skills", "skills")} className="btn-add-section"><Plus size={14} /> Skills</button>
-                            <button onClick={() => addSection("Custom List", "list")} className="btn-add-section"><Plus size={14} /> Custom List</button>
-                            <button onClick={() => addSection("Custom Text", "paragraph")} className="btn-add-section"><Plus size={14} /> Custom Text</button>
-                        </div>
-                    </div>
+                        </>
+                    ) : (
+                        <CoverLetterForm />
+                    )}
                 </div>
             </div>
 
@@ -449,7 +488,7 @@ const EditorPage = () => {
                         </div>
 
                         <div className="pdf-container h-full">
-                            <TemplateViewer ref={previewRef} data={resumeData} templateId={selectedDesign} />
+                            <TemplateViewer ref={previewRef} data={resumeData} templateId={selectedDesign} activeDocument={activeDocument} coverLetterData={useResume().coverLetterData} />
                         </div>
                     </div>
                 </div>

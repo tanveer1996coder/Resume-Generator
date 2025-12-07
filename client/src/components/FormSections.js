@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Sparkles } from 'lucide-react';
 
 export const ContentOptimizer = ({ section, content, onOptimize }) => {
     const [loading, setLoading] = useState(false);
@@ -24,7 +24,15 @@ export const ContentOptimizer = ({ section, content, onOptimize }) => {
     );
 };
 
-export const ExperienceForm = ({ experience, onChange, onRemove, onOptimize }) => {
+export const ExperienceForm = ({ experience, onChange, onRemove, onOptimize, onGenerate }) => {
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const handleGenerate = async () => {
+        setIsGenerating(true);
+        if (onGenerate) await onGenerate(experience.title, experience.company);
+        setIsGenerating(false);
+    };
+
     return (
         <div className="border border-gray-200 p-4 rounded-lg mb-4 bg-gray-50">
             <div className="flex justify-between items-start mb-2">
@@ -35,13 +43,25 @@ export const ExperienceForm = ({ experience, onChange, onRemove, onOptimize }) =
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-2">
-                <input
-                    type="text"
-                    placeholder="Job Title"
-                    className="p-2 border rounded"
-                    value={experience.title || ''}
-                    onChange={(e) => onChange('title', e.target.value)}
-                />
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Job Title"
+                        className="p-2 border rounded w-full pr-8"
+                        value={experience.title || ''}
+                        onChange={(e) => onChange('title', e.target.value)}
+                    />
+                    {experience.title && (
+                        <button
+                            onClick={handleGenerate}
+                            className="absolute right-2 top-2 text-indigo-600 hover:text-indigo-800"
+                            title="Auto-generate bullet points"
+                            disabled={isGenerating}
+                        >
+                            {isGenerating ? <div className="animate-spin w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full" /> : <Sparkles size={16} />}
+                        </button>
+                    )}
+                </div>
                 <input
                     type="text"
                     placeholder="Company"

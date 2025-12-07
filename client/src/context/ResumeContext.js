@@ -6,32 +6,55 @@ export const useResume = () => useContext(ResumeContext);
 
 const INITIAL_SECTIONS = {
     job: [
-        { id: 'exp', type: 'experience', title: 'Work Experience', items: [] },
-        { id: 'edu', type: 'education', title: 'Education', items: [] },
-        { id: 'skills', type: 'skills', title: 'Skills', items: [] },
+        { id: 'exp', type: 'experience', title: 'Work Experience', items: [], column: 'main' },
+        { id: 'edu', type: 'education', title: 'Education', items: [], column: 'main' },
+        { id: 'skills', type: 'skills', title: 'Skills', items: [], column: 'sidebar' },
     ],
     scholarship: [
-        { id: 'edu', type: 'education', title: 'Education', items: [] },
-        { id: 'awards', type: 'list', title: 'Awards & Honors', items: [] },
-        { id: 'research', type: 'list', title: 'Research Experience', items: [] },
+        { id: 'edu', type: 'education', title: 'Education', items: [], column: 'main' },
+        { id: 'awards', type: 'list', title: 'Awards & Honors', items: [], column: 'main' },
+        { id: 'research', type: 'list', title: 'Research Experience', items: [], column: 'main' },
     ],
     creative: [
-        { id: 'portfolio', type: 'list', title: 'Portfolio Projects', items: [] },
-        { id: 'skills', type: 'skills', title: 'Technical Skills', items: [] },
-        { id: 'exp', type: 'experience', title: 'Experience', items: [] },
+        { id: 'portfolio', type: 'list', title: 'Portfolio Projects', items: [], column: 'main' },
+        { id: 'skills', type: 'skills', title: 'Technical Skills', items: [], column: 'sidebar' },
+        { id: 'exp', type: 'experience', title: 'Experience', items: [], column: 'main' },
+    ],
+    cv: [
+        { id: 'edu', type: 'education', title: 'Education', items: [], column: 'main' },
+        { id: 'research', type: 'list', title: 'Research Experience', items: [], column: 'main' },
+        { id: 'publications', type: 'list', title: 'Publications', items: [], column: 'main' },
+        { id: 'grants', type: 'list', title: 'Grants & Awards', items: [], column: 'sidebar' },
+        { id: 'teaching', type: 'experience', title: 'Teaching Experience', items: [], column: 'main' },
     ]
 };
+
 
 export const ResumeProvider = ({ children }) => {
     const [purpose, setPurpose] = useState('job');
     const [jobDescription, setJobDescription] = useState('');
     const [selectedDesign, setSelectedDesign] = useState('modern');
 
+    const [activeDocument, setActiveDocument] = useState('resume'); // 'resume' or 'coverLetter'
+    const [coverLetterData, setCoverLetterData] = useState({
+        recipientName: '',
+        recipientTitle: '',
+        companyName: '',
+        companyAddress: '',
+        greeting: 'Dear Hiring Manager,',
+        body: '',
+        signOff: 'Sincerely,'
+    });
+
     const [resumeData, setResumeData] = useState({
         personalInfo: { fullName: '', email: '', phone: '', linkedin: '', role: '', location: '', photo: null, photoFeedback: null },
         summary: '',
         sections: INITIAL_SECTIONS.job,
     });
+
+    const updateCoverLetter = (field, value) => {
+        setCoverLetterData(prev => ({ ...prev, [field]: value }));
+    };
 
     const loadPurposeConfig = (selectedPurpose) => {
         setPurpose(selectedPurpose);
@@ -99,6 +122,13 @@ export const ResumeProvider = ({ children }) => {
         }));
     };
 
+    const updateSectionColumn = (sectionId, newColumn) => {
+        setResumeData(prev => ({
+            ...prev,
+            sections: prev.sections.map(s => s.id === sectionId ? { ...s, column: newColumn } : s)
+        }));
+    };
+
     const reorderSections = (newSections) => {
         setResumeData(prev => ({
             ...prev,
@@ -152,7 +182,13 @@ export const ResumeProvider = ({ children }) => {
             removeSectionItem,
             updateSectionTitle,
             updateSectionType,
-            reorderSections
+
+            updateSectionColumn,
+            reorderSections,
+            activeDocument,
+            setActiveDocument,
+            coverLetterData,
+            updateCoverLetter
         }}>
             {children}
         </ResumeContext.Provider>

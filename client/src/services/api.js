@@ -23,6 +23,14 @@ export const optimizeContent = async (section, content, jobDescription) => {
     return response.data.optimizedContent;
 };
 
+export const generateDescription = async (jobTitle, company) => {
+    const response = await axios.post(`${API_URL}/ai/generate-description`, {
+        jobTitle,
+        company
+    });
+    return response.data.generatedContent;
+};
+
 export const analyzePhoto = async (imageBase64) => {
     const response = await axios.post(`${API_URL}/ai/analyze-photo`, { imageBase64 });
     return response.data;
